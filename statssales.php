@@ -67,11 +67,24 @@ class statssales extends ModuleGraph
         $this->ps_versions_compliancy = ['min' => '1.7.6.0', 'max' => _PS_VERSION_];
     }
 
+    /**
+     * Install the module and register the stats dashboard hook.
+     *
+     * @return bool True on successful installation, false otherwise
+     */
     public function install()
     {
         return parent::install() && $this->registerHook('displayAdminStatsModules');
     }
 
+    /**
+     * Render the sales and orders chart on the admin statistics dashboard.
+     *
+     * Presents total revenue and order count as line charts, with optional country filtering.
+     * Supports three CSV export variants: revenue by period, order count by period, payment method breakdown.
+     *
+     * @return string HTML output for the statistics widget
+     */
     public function hookDisplayAdminStatsModules()
     {
         $totals = $this->getTotals();
