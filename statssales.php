@@ -82,7 +82,7 @@ class statssales extends ModuleGraph
             ]);
         } elseif ($id_export == 2) {
             $this->csvExport([
-                'layers' => 0,
+                'layers' => 1,
                 'type' => 'line',
                 'option' => '2-' . (int) Tools::getValue('id_country'),
             ]);
@@ -116,7 +116,7 @@ class statssales extends ModuleGraph
 				<div class="row">
 					<div class="col-lg-4 col-lg-offset-7">
 						<select name="id_country">
-							<option value="0"' . ((!Tools::getValue('id_order_state')) ? ' selected="selected"' : '') . '>' . $this->trans('All countries', [], 'Admin.Global') . '</option>';
+							<option value="0"' . ((!Tools::getValue('id_country')) ? ' selected="selected"' : '') . '>' . $this->trans('All countries', [], 'Admin.Global') . '</option>';
         foreach (Country::getCountries($this->context->language->id) as $country) {
             $this->html .= '<option value="' . $country['id_country'] . '"' . (($country['id_country'] == Tools::getValue('id_country')) ? ' selected="selected"' : '') . '>' . $country['name'] . '</option>';
         }
@@ -201,10 +201,14 @@ class statssales extends ModuleGraph
         // Sum Orders
         $sql .= 'IFNULL(SUM(o.`total_paid_tax_excl` / o.conversion_rate), 0)';
         // Sum Refunds
-        $sql .= '- IFNULL(SUM((ps.total_products_tax_excl - ps.total_shipping_tax_excl) / ps.conversion_rate), 0)';
+        $sql .= '- IFNULL(SUM(ps.refund_amount), 0)';
         $sql .= ' as orderSum';
         $sql .= ' FROM `' . _DB_PREFIX_ . 'orders` o';
-        $sql .= ' LEFT JOIN `' . _DB_PREFIX_ . 'order_slip` ps ON o.id_order = ps.id_order';
+        $sql .= ' LEFT JOIN ('
+            . 'SELECT id_order, SUM((total_products_tax_excl - total_shipping_tax_excl) / conversion_rate) AS refund_amount'
+            . ' FROM `' . _DB_PREFIX_ . 'order_slip`'
+            . ' GROUP BY id_order'
+            . ') ps ON ps.id_order = o.id_order';
         $sql .= ' INNER JOIN `' . _DB_PREFIX_ . 'order_state` os ON o.current_state = os.id_order_state';
         if ($idCountry) {
             $sql .= ' INNER JOIN `' . _DB_PREFIX_ . 'address` a ON o.id_address_delivery = a.id_address';
@@ -265,11 +269,15 @@ class statssales extends ModuleGraph
             // Sum Orders
             . 'IFNULL(SUM(o.`total_paid_tax_excl` / o.conversion_rate), 0)'
             // Sum Refunds
-            . ' - IFNULL(SUM((ps.total_products_tax_excl - ps.total_shipping_tax_excl) / ps.conversion_rate), 0)'
+            . ' - IFNULL(SUM(ps.refund_amount), 0)'
             . ' as total_paid_real, '
             . ' (SELECT SUM(product_quantity) FROM `' . _DB_PREFIX_ . 'order_detail` WHERE `id_order` = o.`id_order`) as product_quantity'
             . ' FROM `' . _DB_PREFIX_ . 'orders` o'
-            . ' LEFT JOIN `' . _DB_PREFIX_ . 'order_slip` ps ON o.id_order = ps.id_order'
+            . ' LEFT JOIN ('
+            . 'SELECT id_order, SUM((total_products_tax_excl - total_shipping_tax_excl) / conversion_rate) AS refund_amount'
+            . ' FROM `' . _DB_PREFIX_ . 'order_slip`'
+            . ' GROUP BY id_order'
+            . ') ps ON ps.id_order = o.id_order'
             . ' INNER JOIN `' . _DB_PREFIX_ . 'order_state` os ON o.current_state = os.id_order_state'
             . ((int) $this->id_country ? ' INNER JOIN `' . _DB_PREFIX_ . 'address` a ON o.id_address_delivery = a.id_address' : '')
             . ' WHERE o.valid = 1 AND os.logable = 1'
